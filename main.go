@@ -20,22 +20,31 @@ func main() {
 	outputFileFlag := flag.String("o", "./output.png", "output file path")
 	flag.Parse()
 
-	templateSrc := loadTemplate(*templateFileFlag)
-	overlaySrc := loadTemplate(*overlayFileFlag)
+	templateSrc := loadImage(*templateFileFlag)
+	overlaySrc := loadImage(*overlayFileFlag)
 
+	preparedOverlay := prepareOverlay(overlaySrc)
+
+	target := image.NewNRGBA(templateSrc.Bounds())
+
+	renderTemplateAndOverlayToTarget(target, templateSrc, preparedOverlay)
+
+	writePng(*outputFileFlag, target)
+}
+
+func renderTemplateAndOverlayToTarget(target *image.NRGBA, templateSrc image.Image, preparedOverlay *image.NRGBA) {
+	draw.Draw(target, templateSrc.Bounds(), templateSrc, image.Point{X: 0, Y: 0}, draw.Src)
+	offset := image.Point{X: -265, Y: -180}
+	draw.Draw(target, image.Rect(0, 0, 330, target.Bounds().Dy()), preparedOverlay, offset, draw.Over)
+}
+
+func prepareOverlay(overlaySrc image.Image) *image.NRGBA {
 	scaledOverlay := resize.Resize(70, 0, overlaySrc, resize.Lanczos3)
 	rotated := imaging.Rotate(scaledOverlay, 60, color.Transparent)
-
 	for i := 1; i < 13; i++ {
 		drawCircle(rotated, 5, 40, i, color.Transparent)
 	}
-
-	target := image.NewNRGBA(templateSrc.Bounds())
-	draw.Draw(target, templateSrc.Bounds(), templateSrc, image.Point{X: 0, Y: 0}, draw.Src)
-	offset := image.Point{X: -265, Y: -180}
-	draw.Draw(target, image.Rect(0, 0, 330, target.Bounds().Dy()), rotated, offset, draw.Over)
-
-	writePng(*outputFileFlag, target)
+	return rotated
 }
 
 func writePng(path string, target *image.NRGBA) {
@@ -50,7 +59,7 @@ func writePng(path string, target *image.NRGBA) {
 	}
 }
 
-func loadTemplate(path string) image.Image {
+func loadImage(path string) image.Image {
 	infile, err := os.Open(path)
 	defer func(infile *os.File) {
 		err := infile.Close()
